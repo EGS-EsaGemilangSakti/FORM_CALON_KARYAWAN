@@ -37,7 +37,7 @@ function validateUploadFile(
 export const payrollSchema = z
   .object({
     email: z.string().trim().email('Email tidak valid'),
-    fullName: z.string().trim().min(1, 'Nama wajib diisi').regex(/^[A-Z ]+$/, 'Nama hanya boleh huruf kapital dan spasi'),
+    fullName: z.string().trim().min(1, 'Nama wajib diisi').regex(/^[A-Z .]+$/, 'Nama hanya boleh huruf kapital, titik, dan spasi'),
     address: z.string().trim().min(10, 'Alamat minimal 10 karakter').max(500, 'Alamat maksimal 500 karakter'),
     addressDetail: z.string().trim().min(5, 'Detail alamat minimal 5 karakter').max(200, 'Detail alamat maksimal 200 karakter'),
     provinceCode: z.string().regex(/^\d{2}$/, 'Provinsi wajib dipilih'),

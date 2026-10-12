@@ -214,7 +214,7 @@ function validatePayload(data) {
     if (data['bpjs' + kind + 'Status'] === 'Sudah Ada' && !/^\d{1,30}$/.test(data['bpjs' + kind + 'Number'] || '')) throw new Error('Nomor BPJS wajib 1–30 digit angka');
   });
   if (!validateEmail(data.email)) throw new Error('Email tidak valid');
-  if (!/^[A-Z ]+$/.test(data.fullName || '')) throw new Error('Nama lengkap tidak valid');
+  if (!/^[A-Z .]+$/.test(data.fullName || '')) throw new Error('Nama lengkap tidak valid');
   if (!data.address || data.address.length < 10 || data.address.length > 500) throw new Error('Alamat tidak valid');
   if (!data.addressDetail || data.addressDetail.length < 5 || data.addressDetail.length > 200) throw new Error('Detail alamat tidak valid');
   if (!/^\d{2}$/.test(data.provinceCode || '') || !data.provinceName) throw new Error('Provinsi tidak valid');
@@ -314,6 +314,18 @@ function validateBankAccount(payload) {
   if (!validateBank({ bank_code: payload.bank_code, bank_name: payload.bank_name })) throw new Error('Bank tidak valid');
   if (!/^\d{5,30}$/.test(payload.account_number || '')) throw new Error('Nomor rekening tidak valid');
   if (!/^[A-Z .]+$/.test(payload.account_owner || '')) throw new Error('Nama pemilik rekening tidak valid');
+
+  const approved = JSON.parse(SCRIPT_PROPERTIES.getProperty('APPROVED_BANK_ACCOUNTS') || '[]');
+  const normalizeOwner = function(value) { return String(value || '').trim().replace(/\s+/g, ' ').toUpperCase(); };
+  const match = approved.find(function(item) {
+    return item.bank_code === payload.bank_code && item.account_number === String(payload.account_number)
+      && normalizeOwner(item.account_owner) === normalizeOwner(payload.account_owner);
+  });
+  if (match) return {
+    success: true, message: 'Rekening disetujui melalui verifikasi manual', status: 'VALID', score: 10,
+    validatedName: sanitizeInput(match.account_owner), validationTimestamp: new Date().toISOString(),
+    validationSource: 'MANUAL_APPROVAL'
+  };
 
   const apiKey = SCRIPT_PROPERTIES.getProperty('API_CO_ID_KEY');
   if (!apiKey) throw new Error('API_CO_ID_KEY belum diatur');

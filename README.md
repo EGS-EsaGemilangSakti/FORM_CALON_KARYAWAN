@@ -55,3 +55,5 @@ Domain: https://daftar.ptesagemilangsakti.com/.
 ## Pengujian
 
 Tes mencakup seluruh pilihan kerja, penolakan ID lama, PIN dengan nol di awal, dokumen wajib/opsional, kesesuaian kolom spreadsheet, serta penyiapan file dan spasi saat mengetik. Pengujian server menggunakan layanan tiruan; tidak mengirim data karyawan fiktif ke produksi.
+
+Persetujuan rekening manual disimpan sebagai JSON array pada Script Property `APPROVED_BANK_ACCOUNTS` (bank_code, account_number, account_owner). Pencocokan wajib bank, nomor, dan nama; nama dinormalisasi kapital/spasi tanpa menghapus titik. Hasil persetujuan manual memiliki score 10 dan validationSource MANUAL_APPROVAL. Jangan menyimpan rekening asli dalam repository.

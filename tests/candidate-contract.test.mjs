@@ -30,3 +30,15 @@ for (const kind of ['Health','Employment']) test('BPJS '+kind+' conditional numb
   assert.equal(ctx.validatePayload(serverData({...fixture,[status]:'Belum',[number]:'123'}))[number],'');
   assert.equal(headers.includes('Area'),false);
 });
+
+test('names allow periods in frontend and backend',()=>{const input={...fixture,fullName:'TEST. CALON',accountOwner:'TEST. CALON'};assert.equal(payrollSchema.safeParse(input).success,true);assert.equal(ctx.validatePayload(serverData(input)).fullName,'TEST. CALON');});
+test('manual approval matches bank, number and owner; all other accounts use provider',async()=>{
+ const account={bank_code:'bank_kesejahteraan_ekonomi',account_number:'000000000001',account_owner:'TEST CALON'};
+ let providerCalls=0;
+ const sandbox=vm.createContext({SCRIPT_PROPERTIES:{getProperty:key=>key==='APPROVED_BANK_ACCOUNTS'?JSON.stringify([account]):'test-key'},UrlFetchApp:{fetch:()=>{providerCalls++;return {getResponseCode:()=>200,getContentText:()=>JSON.stringify({data:{is_valid:false,score:0}})}}}});
+ vm.runInContext(await readFile('apps-script/Code.gs','utf8'),sandbox);
+ const request={...account,bank_name:'seabank/bank bke'};
+ assert.equal(sandbox.validateBankAccount(request).score,10);assert.equal(providerCalls,0);
+ for(const patch of [{bank_code:'bank_mandiri'},{account_number:'000000000002'},{account_owner:'OTHER OWNER'}])assert.equal(sandbox.validateBankAccount({...request,...patch}).score,0);
+ assert.equal(providerCalls,3);
+});
