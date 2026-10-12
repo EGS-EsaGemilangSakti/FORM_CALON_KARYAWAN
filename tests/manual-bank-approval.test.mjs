@@ -17,3 +17,9 @@ test('full name and account owner accept periods and still reject digits',async(
  const shape=payrollSchema.innerType().shape;
  for(const field of ['fullName','accountOwner']) {assert.equal(shape[field].safeParse('TEST. ACCOUNT').success,true);assert.equal(shape[field].safeParse('TEST123').success,false);}
 });
+
+test('global bypass accepts accounts without reading approval list; off restores normal matching',()=>{
+ let enabled=true;const ctx=vm.createContext({SCRIPT_PROPERTIES:{getProperty:key=>key==='BYPASS_BANK_PROVIDER'?(enabled?'true':'false'):'[]'},sanitizeInput:s=>s});vm.runInContext(helper,ctx);
+ for(const bank_code of ['bank_mandiri','bank_kesejahteraan_ekonomi']){const r=ctx.getManualBankApproval({bank_code,account_number:'000000000123',account_owner:'TEST. ACCOUNT'});assert.equal(r.score,10);assert.equal(r.validationSource,'BYPASS_PROVIDER');assert.equal(r.validatedName,'TEST. ACCOUNT');}
+ enabled=false;assert.equal(ctx.getManualBankApproval({bank_code:'bank_mandiri',account_number:'000000000123',account_owner:'TEST ACCOUNT'}),null);
+});

@@ -8,12 +8,14 @@ export function AccountValidationResult({ result }: { result: ValidationResult }
 
   const isValid = result.status === 'VALID' && result.score !== null && result.score >= MIN_ACCOUNT_VALIDATION_SCORE;
 
+  const bypassed = result.message === 'Rekening diterima tanpa verifikasi provider';
+
   return (
     <div className={`border px-3 py-3 text-sm md:col-span-2 ${isValid ? 'border-brand bg-emerald-50 text-brand' : 'border-accent bg-red-50 text-accent'}`}>
-      <p className="font-semibold">{isValid ? 'Rekening Valid' : 'Rekening Tidak Valid'}</p>
+      <p className="font-semibold">{bypassed ? 'Rekening Diterima (Tanpa Verifikasi Provider)' : isValid ? 'Rekening Valid' : 'Rekening Tidak Valid'}</p>
       <p>Score: {result.score ?? 0}</p>
       {!isValid ? <p>Score minimal {MIN_ACCOUNT_VALIDATION_SCORE} agar bisa lanjut.</p> : null}
-      {result.validatedName ? <p>Nama hasil masking: {result.validatedName}</p> : null}
+      {result.validatedName ? <p>{bypassed ? 'Nama yang diinput' : 'Nama hasil masking'}: {result.validatedName}</p> : null}
       {result.validationTimestamp ? <p>Waktu validasi: {new Date(result.validationTimestamp).toLocaleString('id-ID')}</p> : null}
     </div>
   );
