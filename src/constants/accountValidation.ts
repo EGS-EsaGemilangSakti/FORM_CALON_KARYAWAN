@@ -1,0 +1,1 @@
+export const MIN_ACCOUNT_VALIDATION_SCORE = 7;
