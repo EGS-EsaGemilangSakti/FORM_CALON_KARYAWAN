@@ -94,10 +94,10 @@ const stepFields = {
     'ownershipStatus',
     'powerOfAttorneyFile',
   ],
-  3: ['ktpFile', 'familyCardFile', 'personalPhotoFile', 'diplomaFile', 'npwpFile', 'bpjsHealthFile', 'bpjsEmploymentFile', 'domicileLetterFile', 'dataAgreement'],
+  3: ['ktpFile', 'familyCardFile', 'personalPhotoFile', 'dataAgreement'],
 } as const;
 
-type PersistedPayrollValues = Partial<Omit<PayrollFormValues, 'ktpFile' | 'familyCardFile' | 'powerOfAttorneyFile' | 'personalPhotoFile' | 'diplomaFile' | 'npwpFile' | 'bpjsHealthFile' | 'bpjsEmploymentFile' | 'domicileLetterFile'>>;
+type PersistedPayrollValues = Partial<Omit<PayrollFormValues, 'ktpFile' | 'familyCardFile' | 'powerOfAttorneyFile' | 'personalPhotoFile'>>;
 
 interface PersistedDraft {
   currentStep?: 1 | 2 | 3;
@@ -177,11 +177,6 @@ function savePersistedDraft(currentStep: number, values: unknown) {
   delete persistableValues.familyCardFile;
   delete persistableValues.powerOfAttorneyFile;
   delete persistableValues.personalPhotoFile;
-  delete persistableValues.diplomaFile;
-  delete persistableValues.npwpFile;
-  delete persistableValues.bpjsHealthFile;
-  delete persistableValues.bpjsEmploymentFile;
-  delete persistableValues.domicileLetterFile;
   window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify({ currentStep, values: persistableValues }));
 }
 
@@ -418,11 +413,6 @@ export function PayrollForm() {
       const familyCard = values.familyCardFile.item(0);
       const powerOfAttorney = values.powerOfAttorneyFile?.item(0) ?? null;
       const personalPhoto = values.personalPhotoFile?.item(0) ?? null;
-      const diploma = values.diplomaFile?.item(0) ?? null;
-      const npwp = values.npwpFile?.item(0) ?? null;
-      const bpjsHealth = values.bpjsHealthFile?.item(0) ?? null;
-      const bpjsEmployment = values.bpjsEmploymentFile?.item(0) ?? null;
-      const domicileLetter = values.domicileLetterFile?.item(0) ?? null;
       if (!ktp || !familyCard || !selectedBank) throw new Error('Data belum lengkap');
       const payload = {
         origin: window.location.origin,
@@ -477,11 +467,6 @@ export function PayrollForm() {
           ktp: await fileToBase64Payload(ktp, 'KTP'),
           familyCard: await fileToBase64Payload(familyCard, 'Kartu Keluarga'),
           personalPhoto: personalPhoto ? await fileToBase64Payload(personalPhoto, 'Foto Diri') : null,
-          diploma: diploma ? await fileToBase64Payload(diploma, 'Ijazah') : null,
-          npwp: npwp ? await fileToBase64Payload(npwp, 'NPWP') : null,
-          bpjsHealth: bpjsHealth ? await fileToBase64Payload(bpjsHealth, 'BPJS Kesehatan') : null,
-          bpjsEmployment: bpjsEmployment ? await fileToBase64Payload(bpjsEmployment, 'BPJS Ketenagakerjaan') : null,
-          domicileLetter: domicileLetter ? await fileToBase64Payload(domicileLetter, 'Surat Domisili') : null,
           powerOfAttorney: powerOfAttorney ? await fileToBase64Payload(powerOfAttorney, 'Surat Kuasa') : null,
         },
       };
@@ -621,11 +606,6 @@ export function PayrollForm() {
             <EmployeeDocumentUploadField name="personalPhotoFile" label="Foto Diri (opsional)" register={register} watch={watch} trigger={trigger} error={errors.personalPhotoFile?.message} />
             <KtpUploadField register={register} watch={watch} trigger={trigger} error={errors.ktpFile?.message} />
             <FamilyCardUploadField register={register} watch={watch} trigger={trigger} error={errors.familyCardFile?.message} />
-            <EmployeeDocumentUploadField name="diplomaFile" label="Foto Ijazah (opsional)" register={register} watch={watch} trigger={trigger} error={errors.diplomaFile?.message} />
-              <EmployeeDocumentUploadField name="npwpFile" label="Foto NPWP (opsional)" register={register} watch={watch} trigger={trigger} error={errors.npwpFile?.message} />
-              <EmployeeDocumentUploadField name="bpjsHealthFile" label="Foto BPJS Kesehatan (opsional)" register={register} watch={watch} trigger={trigger} error={errors.bpjsHealthFile?.message} />
-              <EmployeeDocumentUploadField name="bpjsEmploymentFile" label="Foto BPJS Ketenagakerjaan (opsional)" register={register} watch={watch} trigger={trigger} error={errors.bpjsEmploymentFile?.message} />
-              <EmployeeDocumentUploadField name="domicileLetterFile" label="Foto Surat Domisili (opsional)" register={register} watch={watch} trigger={trigger} error={errors.domicileLetterFile?.message} />
           </StepCard>
 
           <StepCard title="Ringkasan Data" icon={<BarChart3 className="h-5 w-5 text-[#f2ca50]" />}>

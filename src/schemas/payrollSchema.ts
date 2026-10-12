@@ -87,11 +87,6 @@ export const payrollSchema = z
     ktpFile: fileListSchema,
     familyCardFile: fileListSchema,
     personalPhotoFile: z.custom<FileList>().optional(),
-    diplomaFile: z.custom<FileList>().optional(),
-    npwpFile: z.custom<FileList>().optional(),
-    bpjsHealthFile: z.custom<FileList>().optional(),
-    bpjsEmploymentFile: z.custom<FileList>().optional(),
-    domicileLetterFile: z.custom<FileList>().optional(),
     powerOfAttorneyFile: z.custom<FileList>().optional(),
     dataAgreement: z.literal(true, { errorMap: () => ({ message: 'Pernyataan wajib disetujui' }) }),
     website: z.string().optional(),
@@ -109,7 +104,7 @@ export const payrollSchema = z
     validateUploadFile(data.ktpFile, KTP_MIME_TYPES, 'KTP', 'KTP wajib diunggah', 'KTP wajib pdf, jpg, jpeg, atau png maksimal 5MB', ctx, ['ktpFile']);
     validateUploadFile(data.familyCardFile, FAMILY_CARD_MIME_TYPES, 'Kartu Keluarga', 'Kartu Keluarga wajib diunggah', 'Kartu Keluarga wajib pdf, jpg, jpeg, atau png maksimal 5MB', ctx, ['familyCardFile']);
 
-    for (const [field, label] of [['personalPhotoFile', 'Foto Diri'], ['diplomaFile', 'Ijazah'], ['npwpFile', 'NPWP'], ['bpjsHealthFile', 'BPJS Kesehatan'], ['bpjsEmploymentFile', 'BPJS Ketenagakerjaan'], ['domicileLetterFile', 'Surat Domisili']] as const) {
+    for (const [field, label] of [['personalPhotoFile', 'Foto Diri']] as const) {
       const files = data[field];
       if (files instanceof FileList && files.length > 0) validateUploadFile(files, EMPLOYEE_DOCUMENT_MIME_TYPES, label, '', label + ' wajib jpg, jpeg, atau png maksimal 5MB', ctx, [field]);
     }

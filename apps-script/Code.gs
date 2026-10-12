@@ -43,11 +43,6 @@ const HEADERS = [
   'Surat Kuasa URL',
   'Kartu Keluarga URL',
   'Foto Diri URL',
-  'Ijazah URL',
-  'NPWP URL',
-  'BPJS Kesehatan URL',
-  'BPJS Ketenagakerjaan URL',
-  'Surat Domisili URL'
 ];
 const ALLOWED_FIELDS = [
   'email',
@@ -197,11 +192,6 @@ function handleSubmitPayroll(payload) {
 
   const employeeDocuments = {
     personalPhoto: uploadOptionalToDrive(payload.files && payload.files.personalPhoto, 'personalPhoto', submissionId),
-    diploma: uploadOptionalToDrive(payload.files && payload.files.diploma, 'diploma', submissionId),
-    npwp: uploadOptionalToDrive(payload.files && payload.files.npwp, 'npwp', submissionId),
-    bpjsHealth: uploadOptionalToDrive(payload.files && payload.files.bpjsHealth, 'bpjsHealth', submissionId),
-    bpjsEmployment: uploadOptionalToDrive(payload.files && payload.files.bpjsEmployment, 'bpjsEmployment', submissionId),
-    domicileLetter: uploadOptionalToDrive(payload.files && payload.files.domicileLetter, 'domicileLetter', submissionId)
   };
 
   saveToSpreadsheet(submissionId, data, backendValidation, ktpFile.url, suratKuasaFile.url, familyCardFile.url, employeeDocuments, submissionType);
@@ -440,11 +430,6 @@ function uploadToDrive(filePayload, type, submissionId) {
     kartuKeluarga: KK_FOLDER_ID,
     suratKuasa: SURAT_KUASA_FOLDER_ID,
     personalPhoto: PERSONAL_PHOTO_FOLDER_ID,
-    diploma: DIPLOMA_FOLDER_ID,
-    npwp: NPWP_FOLDER_ID,
-    bpjsHealth: BPJS_HEALTH_FOLDER_ID,
-    bpjsEmployment: BPJS_EMPLOYMENT_FOLDER_ID,
-    domicileLetter: DOMICILE_LETTER_FOLDER_ID
   };
   const folderId = folderIds[type];
   if (!folderId) throw new Error('Folder dokumen tidak dikenal');
@@ -544,11 +529,6 @@ function buildSubmissionRow(submissionId, data, validation, ktpUrl, suratKuasaUr
     suratKuasaUrl,
     familyCardUrl,
     employeeDocuments.personalPhoto,
-    employeeDocuments.diploma,
-    employeeDocuments.npwp,
-    employeeDocuments.bpjsHealth,
-    employeeDocuments.bpjsEmployment,
-    employeeDocuments.domicileLetter
   ];
 }
 

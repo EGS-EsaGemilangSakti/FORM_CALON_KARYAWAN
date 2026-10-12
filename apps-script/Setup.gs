@@ -4,7 +4,7 @@ function initializeCandidateStorage() {
   if (!props.getProperty('SPREADSHEET_ID')) props.setProperty('SPREADSHEET_ID', SpreadsheetApp.create('FORM CALON KARYAWAN').getId());
   if (!props.getProperty('UPLOADS_FOLDER_ID')) props.setProperty('UPLOADS_FOLDER_ID', DriveApp.createFolder('FORM_CALON_KARYAWAN_UPLOADS').getId());
   const root = DriveApp.getFolderById(props.getProperty('UPLOADS_FOLDER_ID'));
-  const folders = {KTP_FOLDER_ID:'KTP',KK_FOLDER_ID:'KK',SURAT_KUASA_FOLDER_ID:'SURAT_KUASA',PERSONAL_PHOTO_FOLDER_ID:'FOTO_DIRI',DIPLOMA_FOLDER_ID:'IJAZAH',NPWP_FOLDER_ID:'NPWP',BPJS_HEALTH_FOLDER_ID:'BPJS_KESEHATAN',BPJS_EMPLOYMENT_FOLDER_ID:'BPJS_KETENAGAKERJAAN',DOMICILE_LETTER_FOLDER_ID:'SURAT_DOMISILI'};
+  const folders = {KTP_FOLDER_ID:'KTP',KK_FOLDER_ID:'KK',SURAT_KUASA_FOLDER_ID:'SURAT_KUASA',PERSONAL_PHOTO_FOLDER_ID:'FOTO_DIRI'};
   Object.keys(folders).forEach(function(key) { if (!props.getProperty(key)) props.setProperty(key, root.createFolder(folders[key]).getId()); });
   props.setProperty('ALLOWED_ORIGINS','https://daftar.ptesagemilangsakti.com');
   console.log('Spreadsheet: https://docs.google.com/spreadsheets/d/' + props.getProperty('SPREADSHEET_ID') + '/edit');
@@ -22,11 +22,6 @@ function setup() {
   DriveApp.getFolderById(KK_FOLDER_ID);
   DriveApp.getFolderById(SURAT_KUASA_FOLDER_ID);
   DriveApp.getFolderById(PERSONAL_PHOTO_FOLDER_ID);
-  DriveApp.getFolderById(DIPLOMA_FOLDER_ID);
-  DriveApp.getFolderById(NPWP_FOLDER_ID);
-  DriveApp.getFolderById(BPJS_HEALTH_FOLDER_ID);
-  DriveApp.getFolderById(BPJS_EMPLOYMENT_FOLDER_ID);
-  DriveApp.getFolderById(DOMICILE_LETTER_FOLDER_ID);
   console.log('Setup berhasil: header spreadsheet, sinkronisasi sheet penempatan, format duplikat NIK, dan folder Drive valid.');
 }
 
@@ -113,5 +108,21 @@ function migrateCandidateBpjsSchema() {
     PLACEMENTS.forEach(function(p) { names.push(getPlacementSheetName(p), getRevisionPlacementSheetName(p)); });
     names.forEach(function(name) { createSpreadsheetHeadersForSheet(getSheet(name)); });
     console.log('Migrasi BPJS berhasil: Area dihapus, empat kolom BPJS ditambahkan. Backup tersimpan.');
+  } finally { lock.releaseLock(); }
+}
+
+function migrateCandidateDocumentSchema() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const props = PropertiesService.getScriptProperties();
+    if (!props.getProperty('DOCUMENT_SCHEMA_BACKUP_ID')) {
+      const backup = SpreadsheetApp.openById(SPREADSHEET_ID).copy('BACKUP CALON KARYAWAN SEBELUM PENYEDERHANAAN DOKUMEN ' + new Date().toISOString());
+      props.setProperty('DOCUMENT_SCHEMA_BACKUP_ID', backup.getId());
+    }
+    const names = [SHEET_NAME, REVISION_SHEET_NAME];
+    PLACEMENTS.forEach(function(p) { names.push(getPlacementSheetName(p), getRevisionPlacementSheetName(p)); });
+    names.forEach(function(name) { createSpreadsheetHeadersForSheet(getSheet(name)); });
+    console.log('Migrasi dokumen berhasil: kolom ijazah, NPWP, surat domisili, dan foto BPJS dihapus. Backup tersimpan.');
   } finally { lock.releaseLock(); }
 }
