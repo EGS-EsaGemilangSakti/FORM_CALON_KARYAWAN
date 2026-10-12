@@ -64,7 +64,10 @@ export const payrollSchema = z
     emergencyContactName: z.string().trim().min(1, 'Nama kontak darurat wajib diisi').regex(/^[A-Z .'-]+$/, 'Nama kontak darurat harus menggunakan huruf kapital'),
     emergencyRelationship: z.enum(EMERGENCY_RELATIONSHIPS, { message: 'Hubungan kontak darurat wajib dipilih' }),
     placement: z.enum(PLACEMENTS, { message: 'Penempatan wajib dipilih' }),
-    area: z.string().trim().min(1, 'Area wajib diisi').regex(/^[-A-Z0-9 .,'()/]+$/, 'Area harus menggunakan huruf kapital'),
+    bpjsHealthStatus: z.enum(['Sudah Ada', 'Belum'], { message: 'Status kepemilikan BPJS wajib dipilih' }),
+    bpjsHealthNumber: z.string(),
+    bpjsEmploymentStatus: z.enum(['Sudah Ada', 'Belum'], { message: 'Status kepemilikan BPJS wajib dipilih' }),
+    bpjsEmploymentNumber: z.string(),
     fingerPin: z.string().regex(/^\d{1,30}$/, 'ID PIN Finger wajib 1–30 digit angka'),
     employmentStatus: z.enum(EMPLOYMENT_STATUSES, { message: 'Status karyawan wajib dipilih' }),
     position: z.enum(POSITIONS, { message: 'Posisi wajib dipilih' }),
@@ -95,6 +98,11 @@ export const payrollSchema = z
     formStartedAt: z.string().min(1),
   })
   .superRefine((data, ctx) => {
+    for (const kind of ['Health', 'Employment'] as const) {
+      if (data[`bpjs${kind}Status`] === 'Sudah Ada' && !/^\d{1,30}$/.test(data[`bpjs${kind}Number`])) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, path: [`bpjs${kind}Number`], message: 'Nomor BPJS wajib 1–30 digit angka' });
+      }
+    }
     if (data.accountValidation.status !== 'VALID' || data.accountValidation.score === null || data.accountValidation.score < MIN_ACCOUNT_VALIDATION_SCORE) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['accountValidation'], message: `Rekening wajib divalidasi dengan score minimal ${MIN_ACCOUNT_VALIDATION_SCORE}` });
     }

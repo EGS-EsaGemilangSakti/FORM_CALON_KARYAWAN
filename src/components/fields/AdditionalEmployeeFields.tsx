@@ -7,7 +7,7 @@ type Props = {
   register: UseFormRegister<PayrollFormValues>;
   setValue: UseFormSetValue<PayrollFormValues>;
   watch: UseFormWatch<PayrollFormValues>;
-  errors: Partial<Record<'area' | 'motherName' | 'emergencyContact' | 'emergencyContactName' | 'emergencyRelationship' | 'fingerPin', string>>;
+  errors: Partial<Record<'motherName' | 'emergencyContact' | 'emergencyContactName' | 'emergencyRelationship' | 'fingerPin', string>>;
 };
 
 const uppercase = (value: string) => value.toUpperCase();
@@ -32,11 +32,8 @@ export function PersonalEmergencyFields({ register, setValue, errors }: Omit<Pro
   </>;
 }
 
-export function AreaAndFingerFields({ register, setValue, errors }: Props) {
+export function FingerFields({ register, setValue, errors }: Props) {
   return <>
-    <FieldShell label="Area" error={errors.area}>
-      <input className={inputClass} placeholder="AREA" {...register('area')} onChange={(event) => setValue('area', uppercase(event.target.value), { shouldDirty: true, shouldValidate: true })} />
-    </FieldShell>
     <FieldShell label="ID PIN Finger" error={errors.fingerPin}>
       <input className={inputClass} inputMode="numeric" maxLength={30} placeholder="ID PIN Finger" {...register('fingerPin')} onChange={(event) => setValue('fingerPin', event.target.value.replace(/\D/g, ''), { shouldDirty: true, shouldValidate: true })} />
     </FieldShell>

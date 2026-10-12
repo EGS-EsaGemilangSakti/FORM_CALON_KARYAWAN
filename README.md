@@ -8,6 +8,7 @@ Form pendaftaran calon karyawan PT ESA GEMILANG SAKTI, dengan tampilan dasar for
 - Posisi: BATANGAN/REGULER (satu pilihan).
 - Status karyawan: Kontrak.
 - Identitas karyawan: ID PIN Finger berupa 1–30 digit; angka nol di awal dipertahankan. Tidak menggunakan ID OPS, OS, atau ID karyawan lain.
+- Area tidak digunakan. Status kepemilikan BPJS Kesehatan dan Ketenagakerjaan dipilih terpisah: Sudah Ada mewajibkan nomor; Belum mengosongkan nomor.
 - KTP dan KK wajib. Foto diri, ijazah, NPWP, BPJS, dan surat domisili opsional.
 - Surat kuasa wajib untuk rekening orang lain.
 - Validasi rekening minimal skor 7; server memvalidasi ulang sebelum menyimpan.

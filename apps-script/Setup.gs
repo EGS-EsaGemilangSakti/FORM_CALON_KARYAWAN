@@ -99,3 +99,19 @@ function applyDuplicateNikFormattingToSheet(sheet) {
   preservedRules.push(duplicateNikRule);
   sheet.setConditionalFormatRules(preservedRules);
 }
+
+function migrateCandidateBpjsSchema() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    const props = PropertiesService.getScriptProperties();
+    if (!props.getProperty('BPJS_SCHEMA_BACKUP_ID')) {
+      const backup = SpreadsheetApp.openById(SPREADSHEET_ID).copy('BACKUP CALON KARYAWAN SEBELUM BPJS ' + new Date().toISOString());
+      props.setProperty('BPJS_SCHEMA_BACKUP_ID', backup.getId());
+    }
+    const names = [SHEET_NAME, REVISION_SHEET_NAME];
+    PLACEMENTS.forEach(function(p) { names.push(getPlacementSheetName(p), getRevisionPlacementSheetName(p)); });
+    names.forEach(function(name) { createSpreadsheetHeadersForSheet(getSheet(name)); });
+    console.log('Migrasi BPJS berhasil: Area dihapus, empat kolom BPJS ditambahkan. Backup tersimpan.');
+  } finally { lock.releaseLock(); }
+}

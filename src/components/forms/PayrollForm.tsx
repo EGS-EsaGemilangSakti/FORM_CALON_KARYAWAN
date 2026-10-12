@@ -17,7 +17,8 @@ import { fileToBase64Payload } from '../../utils/validators';
 import { AccountNumberField } from '../fields/AccountNumberField';
 import { AccountOwnerField } from '../fields/AccountOwnerField';
 import { AccountValidationResult } from '../fields/AccountValidationResult';
-import { AreaAndFingerFields, PersonalEmergencyFields } from '../fields/AdditionalEmployeeFields';
+import { BpjsFields } from '../fields/BpjsFields';
+import { FingerFields, PersonalEmergencyFields } from '../fields/AdditionalEmployeeFields';
 import { AddressField } from '../fields/AddressField';
 import { BankField } from '../fields/BankField';
 import { BirthDateField } from '../fields/BirthDateField';
@@ -79,8 +80,9 @@ const stepFields = {
   ],
   2: [
     'placement',
-    'area',
     'fingerPin',
+    'bpjsHealthStatus', 'bpjsHealthNumber',
+    'bpjsEmploymentStatus', 'bpjsEmploymentNumber',
     'employmentStatus',
     'position',
     'firstWorkDate',
@@ -132,8 +134,9 @@ function getEmptyFormValues(): DefaultValues<PayrollFormValues> {
     emergencyContactName: '',
     emergencyRelationship: '',
     placement: '',
-    area: '',
     fingerPin: '',
+    bpjsHealthStatus: '', bpjsHealthNumber: '',
+    bpjsEmploymentStatus: '', bpjsEmploymentNumber: '',
     employmentStatus: 'Kontrak',
     position: 'BATANGAN/REGULER',
     firstWorkDate: '',
@@ -155,6 +158,7 @@ function loadPersistedDraft(): PersistedDraft {
     const raw = window.localStorage.getItem(DRAFT_STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as PersistedDraft;
+    if (parsed.values) delete (parsed.values as Record<string, unknown>).area;
     const parsedStep = Number(parsed.currentStep);
     return {
       ...parsed,
@@ -168,6 +172,7 @@ function loadPersistedDraft(): PersistedDraft {
 function savePersistedDraft(currentStep: number, values: unknown) {
   if (typeof window === 'undefined') return;
   const persistableValues = { ...(values as Record<string, unknown>) };
+  delete persistableValues.area;
   delete persistableValues.ktpFile;
   delete persistableValues.familyCardFile;
   delete persistableValues.powerOfAttorneyFile;
@@ -453,8 +458,11 @@ export function PayrollForm() {
           emergencyContactName: values.emergencyContactName,
           emergencyRelationship: values.emergencyRelationship,
           placement: values.placement,
-          area: values.area,
           fingerPin: values.fingerPin,
+          bpjsHealthStatus: values.bpjsHealthStatus,
+          bpjsHealthNumber: values.bpjsHealthStatus === 'Sudah Ada' ? values.bpjsHealthNumber : '',
+          bpjsEmploymentStatus: values.bpjsEmploymentStatus,
+          bpjsEmploymentNumber: values.bpjsEmploymentStatus === 'Sudah Ada' ? values.bpjsEmploymentNumber : '',
           employmentStatus: values.employmentStatus,
           position: values.position,
           firstWorkDate: toDisplayDate(values.firstWorkDate),
@@ -573,8 +581,9 @@ export function PayrollForm() {
           <StepCard title="Detail Penempatan" icon={<BriefcaseBusiness className="h-5 w-5 text-[#f2ca50]" />}>
             <PlacementField register={register} setValue={setValue} watch={watch} error={errors.placement?.message} />
             <EmploymentStatusField register={register} setValue={setValue} watch={watch} error={errors.employmentStatus?.message} />
-            <AreaAndFingerFields register={register} setValue={setValue} watch={watch} errors={{ area: errors.area?.message, fingerPin: errors.fingerPin?.message }} />
+            <FingerFields register={register} setValue={setValue} watch={watch} errors={{ fingerPin: errors.fingerPin?.message }} />
             <PositionField register={register} setValue={setValue} watch={watch} error={errors.position?.message} />
+            <BpjsFields register={register} setValue={setValue} watch={watch} errors={errors} />
             <FirstWorkDateField register={register} error={errors.firstWorkDate?.message} />
           </StepCard>
 
@@ -624,7 +633,8 @@ export function PayrollForm() {
               <SummaryItem label="Nama Lengkap" value={summaryValues.fullName} />
               <SummaryItem label="Posisi" value={summaryValues.position} />
               <SummaryItem label="Status Karyawan" value={summaryValues.employmentStatus} />
-              <SummaryItem label="Area" value={summaryValues.area} />
+              <SummaryItem label="BPJS Kesehatan" value={summaryValues.bpjsHealthStatus === 'Sudah Ada' ? summaryValues.bpjsHealthNumber : summaryValues.bpjsHealthStatus} />
+              <SummaryItem label="BPJS Ketenagakerjaan" value={summaryValues.bpjsEmploymentStatus === 'Sudah Ada' ? summaryValues.bpjsEmploymentNumber : summaryValues.bpjsEmploymentStatus} />
               <SummaryItem label="ID PIN Finger" value={summaryValues.fingerPin} />
             </div>
             <div className="space-y-6 md:col-span-2">

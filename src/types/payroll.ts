@@ -55,8 +55,11 @@ export interface PayrollFormValues {
   emergencyContactName: string;
   emergencyRelationship: EmergencyRelationship | '';
   placement: string;
-  area: string;
   fingerPin: string;
+  bpjsHealthStatus: 'Sudah Ada' | 'Belum' | '';
+  bpjsHealthNumber: string;
+  bpjsEmploymentStatus: 'Sudah Ada' | 'Belum' | '';
+  bpjsEmploymentNumber: string;
   employmentStatus: string;
   position: string;
   firstWorkDate: string;

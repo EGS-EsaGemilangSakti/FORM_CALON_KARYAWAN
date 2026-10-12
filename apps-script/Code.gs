@@ -22,8 +22,11 @@ const HEADERS = [
   'Agama',
   'PTKP',
   'Penempatan',
-  'Area',
   'ID PIN Finger',
+  'Status Kepemilikan BPJS Kesehatan',
+  'Nomor BPJS Kesehatan',
+  'Status Kepemilikan BPJS Ketenagakerjaan',
+  'Nomor BPJS Ketenagakerjaan',
   'Status Karyawan',
   'Posisi',
   'Tanggal Kerja Pertama',
@@ -75,8 +78,9 @@ const ALLOWED_FIELDS = [
   'emergencyContactName',
   'emergencyRelationship',
   'placement',
-  'area',
   'fingerPin',
+  'bpjsHealthStatus', 'bpjsHealthNumber',
+  'bpjsEmploymentStatus', 'bpjsEmploymentNumber',
   'employmentStatus',
   'position',
   'firstWorkDate',
@@ -215,6 +219,10 @@ function handleSubmitPayroll(payload) {
 
 function validatePayload(data) {
   rejectUnknownFields(data, ALLOWED_FIELDS);
+  ['Health', 'Employment'].forEach(function(kind) {
+    if (['Sudah Ada', 'Belum'].indexOf(data['bpjs' + kind + 'Status']) < 0) throw new Error('Status kepemilikan BPJS wajib dipilih');
+    if (data['bpjs' + kind + 'Status'] === 'Sudah Ada' && !/^\d{1,30}$/.test(data['bpjs' + kind + 'Number'] || '')) throw new Error('Nomor BPJS wajib 1–30 digit angka');
+  });
   if (!validateEmail(data.email)) throw new Error('Email tidak valid');
   if (!/^[A-Z ]+$/.test(data.fullName || '')) throw new Error('Nama lengkap tidak valid');
   if (!data.address || data.address.length < 10 || data.address.length > 500) throw new Error('Alamat tidak valid');
@@ -240,7 +248,6 @@ function validatePayload(data) {
   if (!/^[A-Z .'-]+$/.test(data.emergencyContactName || '')) throw new Error('Nama kontak darurat tidak valid');
   if (EMERGENCY_RELATIONSHIPS.indexOf(data.emergencyRelationship) === -1) throw new Error('Hubungan kontak darurat tidak valid');
   if (PLACEMENTS.indexOf(data.placement) === -1) throw new Error('Penempatan tidak valid');
-  if (!/^[A-Z0-9 .,'()\/\-]+$/.test(data.area || '')) throw new Error('Area tidak valid');
   if (!/^\d{1,30}$/.test(data.fingerPin || '')) throw new Error('ID PIN Finger wajib 1–30 digit angka');
   if (EMPLOYMENT_STATUSES.indexOf(data.employmentStatus) === -1) throw new Error('Status karyawan harus Kontrak');
   if (POSITIONS.indexOf(data.position) === -1) throw new Error('Posisi harus BATANGAN/REGULER');
@@ -279,8 +286,11 @@ function validatePayload(data) {
     emergencyContactName: sanitizeInput(data.emergencyContactName).toUpperCase(),
     emergencyRelationship: data.emergencyRelationship,
     placement: data.placement,
-    area: sanitizeInput(data.area).toUpperCase(),
     fingerPin: String(data.fingerPin),
+    bpjsHealthStatus: data.bpjsHealthStatus,
+    bpjsHealthNumber: data.bpjsHealthStatus === 'Sudah Ada' ? String(data.bpjsHealthNumber) : '',
+    bpjsEmploymentStatus: data.bpjsEmploymentStatus,
+    bpjsEmploymentNumber: data.bpjsEmploymentStatus === 'Sudah Ada' ? String(data.bpjsEmploymentNumber) : '',
     employmentStatus: data.employmentStatus,
     position: data.position,
     firstWorkDate: data.firstWorkDate,
@@ -513,8 +523,11 @@ function buildSubmissionRow(submissionId, data, validation, ktpUrl, suratKuasaUr
     data.religion,
     data.ptkpCode,
     data.placement,
-    data.area,
     "'" + data.fingerPin,
+    data.bpjsHealthStatus,
+    data.bpjsHealthNumber ? "'" + data.bpjsHealthNumber : '',
+    data.bpjsEmploymentStatus,
+    data.bpjsEmploymentNumber ? "'" + data.bpjsEmploymentNumber : '',
     data.employmentStatus,
     data.position,
     data.firstWorkDate,
