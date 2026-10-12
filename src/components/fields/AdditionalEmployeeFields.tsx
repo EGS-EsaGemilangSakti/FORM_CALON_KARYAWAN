@@ -1,6 +1,7 @@
 import type { UseFormRegister, UseFormSetValue, UseFormWatch } from 'react-hook-form';
 import { EMERGENCY_RELATIONSHIPS } from '../../constants/placements';
 import type { PayrollFormValues } from '../../types/payroll';
+import { UppercaseNameInput } from './UppercaseNameInput';
 import { FieldShell, inputClass } from './FieldShell';
 
 type Props = {
@@ -10,18 +11,18 @@ type Props = {
   errors: Partial<Record<'motherName' | 'emergencyContact' | 'emergencyContactName' | 'emergencyRelationship' | 'fingerPin', string>>;
 };
 
-const uppercase = (value: string) => value.toUpperCase();
+
 
 export function PersonalEmergencyFields({ register, setValue, errors }: Omit<Props, 'watch'>) {
   return <>
     <FieldShell label="Ibu Kandung" error={errors.motherName}>
-      <input className={inputClass} placeholder="NAMA IBU KANDUNG" {...register('motherName')} onChange={(event) => setValue('motherName', uppercase(event.target.value), { shouldDirty: true, shouldValidate: true })} />
+      <UppercaseNameInput name="motherName" register={register} setValue={setValue} placeholder="NAMA IBU KANDUNG" />
     </FieldShell>
     <FieldShell label="Kontak Darurat" error={errors.emergencyContact}>
       <input className={inputClass} type="tel" inputMode="numeric" placeholder="08xxxxxxxxxx" {...register('emergencyContact')} onChange={(event) => setValue('emergencyContact', event.target.value.replace(/\D/g, ''), { shouldDirty: true, shouldValidate: true })} />
     </FieldShell>
     <FieldShell label="Nama Kontak Darurat" error={errors.emergencyContactName}>
-      <input className={inputClass} placeholder="NAMA KONTAK DARURAT" {...register('emergencyContactName')} onChange={(event) => setValue('emergencyContactName', uppercase(event.target.value), { shouldDirty: true, shouldValidate: true })} />
+      <UppercaseNameInput name="emergencyContactName" register={register} setValue={setValue} placeholder="NAMA KONTAK DARURAT" />
     </FieldShell>
     <FieldShell label="Hubungan Kontak Darurat" error={errors.emergencyRelationship}>
       <select className={inputClass} {...register('emergencyRelationship')}>

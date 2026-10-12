@@ -42,3 +42,5 @@ test('manual approval matches bank, number and owner; all other accounts use pro
  for(const patch of [{bank_code:'bank_mandiri'},{account_number:'000000000002'},{account_owner:'OTHER OWNER'}])assert.equal(sandbox.validateBankAccount({...request,...patch}).score,0);
  assert.equal(providerCalls,3);
 });
+
+test('names are uppercase in validated submission even before a blur',()=>{const result=payrollSchema.parse({...fixture,fullName:'moch. arizal ',accountOwner:'moch. arizal',motherName:'ibu calon',emergencyContactName:'kontak calon'});assert.equal(result.fullName,'MOCH. ARIZAL');assert.equal(result.accountOwner,'MOCH. ARIZAL');assert.equal(result.motherName,'IBU CALON');assert.equal(result.emergencyContactName,'KONTAK CALON');});

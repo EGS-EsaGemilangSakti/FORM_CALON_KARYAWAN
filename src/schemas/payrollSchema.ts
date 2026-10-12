@@ -37,7 +37,7 @@ function validateUploadFile(
 export const payrollSchema = z
   .object({
     email: z.string().trim().email('Email tidak valid'),
-    fullName: z.string().trim().min(1, 'Nama wajib diisi').regex(/^[A-Z .]+$/, 'Nama hanya boleh huruf kapital, titik, dan spasi'),
+    fullName: z.string().trim().toUpperCase().min(1, 'Nama wajib diisi').regex(/^[A-Z .]+$/, 'Nama hanya boleh huruf kapital, titik, dan spasi'),
     address: z.string().trim().min(10, 'Alamat minimal 10 karakter').max(500, 'Alamat maksimal 500 karakter'),
     addressDetail: z.string().trim().min(5, 'Detail alamat minimal 5 karakter').max(200, 'Detail alamat maksimal 200 karakter'),
     provinceCode: z.string().regex(/^\d{2}$/, 'Provinsi wajib dipilih'),
@@ -59,9 +59,9 @@ export const payrollSchema = z
     religion: z.enum(RELIGIONS, { message: 'Agama wajib dipilih' }),
     ptkpCode: z.enum(PTKP_CODES, { message: 'PTKP wajib dipilih' }),
     phone: z.string().regex(/^\d{10,15}$/, 'Nomor telepon wajib 10-15 digit'),
-    motherName: z.string().trim().min(1, 'Nama ibu kandung wajib diisi').regex(/^[A-Z .'-]+$/, 'Nama ibu kandung harus menggunakan huruf kapital'),
+    motherName: z.string().trim().toUpperCase().min(1, 'Nama ibu kandung wajib diisi').regex(/^[A-Z .'-]+$/, 'Nama ibu kandung harus menggunakan huruf kapital'),
     emergencyContact: z.string().regex(/^\d{10,15}$/, 'Kontak darurat wajib 10-15 digit angka'),
-    emergencyContactName: z.string().trim().min(1, 'Nama kontak darurat wajib diisi').regex(/^[A-Z .'-]+$/, 'Nama kontak darurat harus menggunakan huruf kapital'),
+    emergencyContactName: z.string().trim().toUpperCase().min(1, 'Nama kontak darurat wajib diisi').regex(/^[A-Z .'-]+$/, 'Nama kontak darurat harus menggunakan huruf kapital'),
     emergencyRelationship: z.enum(EMERGENCY_RELATIONSHIPS, { message: 'Hubungan kontak darurat wajib dipilih' }),
     placement: z.enum(PLACEMENTS, { message: 'Penempatan wajib dipilih' }),
     bpjsHealthStatus: z.enum(['Sudah Ada', 'Belum'], { message: 'Status kepemilikan BPJS wajib dipilih' }),
@@ -75,7 +75,7 @@ export const payrollSchema = z
     bankCode: z.string().refine((code) => BANKS.some((bank) => bank.bank_code === code), 'Bank wajib dipilih'),
     bankName: z.string().min(1, 'Bank wajib dipilih'),
     accountNumber: z.string().regex(/^\d{5,30}$/, 'Nomor rekening wajib 5-30 digit angka'),
-    accountOwner: z.string().trim().min(1, 'Nama pemilik rekening wajib diisi').regex(/^[A-Z .]+$/, 'Nama pemilik rekening hanya boleh huruf kapital, titik, dan spasi'),
+    accountOwner: z.string().trim().toUpperCase().min(1, 'Nama pemilik rekening wajib diisi').regex(/^[A-Z .]+$/, 'Nama pemilik rekening hanya boleh huruf kapital, titik, dan spasi'),
     accountValidation: z.object({
       status: z.enum(['UNVALIDATED', 'VALID', 'INVALID']),
       score: z.number().nullable(),
