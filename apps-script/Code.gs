@@ -214,7 +214,7 @@ function validatePayload(data) {
     if (data['bpjs' + kind + 'Status'] === 'Sudah Ada' && !/^\d{1,30}$/.test(data['bpjs' + kind + 'Number'] || '')) throw new Error('Nomor BPJS wajib 1–30 digit angka');
   });
   if (!validateEmail(data.email)) throw new Error('Email tidak valid');
-  if (!/^[A-Z .]+$/.test(data.fullName || '')) throw new Error('Nama lengkap tidak valid');
+  if (!/^[A-Z .']+$/.test(data.fullName || '')) throw new Error('Nama lengkap tidak valid');
   if (!data.address || data.address.length < 10 || data.address.length > 500) throw new Error('Alamat tidak valid');
   if (!data.addressDetail || data.addressDetail.length < 5 || data.addressDetail.length > 200) throw new Error('Detail alamat tidak valid');
   if (!/^\d{2}$/.test(data.provinceCode || '') || !data.provinceName) throw new Error('Provinsi tidak valid');
@@ -249,7 +249,7 @@ function validatePayload(data) {
 
   return {
     email: sanitizeInput(data.email),
-    fullName: sanitizeInput(data.fullName),
+    fullName: String(data.fullName).trim().replace(/\s+/g, ' '),
     address: sanitizeInput(data.address),
     addressDetail: sanitizeInput(data.addressDetail),
     provinceCode: sanitizeInput(data.provinceCode),

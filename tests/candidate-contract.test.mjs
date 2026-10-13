@@ -44,3 +44,19 @@ test('manual approval matches bank, number and owner; all other accounts use pro
 });
 
 test('names are uppercase in validated submission even before a blur',()=>{const result=payrollSchema.parse({...fixture,fullName:'moch. arizal ',accountOwner:'moch. arizal',motherName:'ibu calon',emergencyContactName:'kontak calon'});assert.equal(result.fullName,'MOCH. ARIZAL');assert.equal(result.accountOwner,'MOCH. ARIZAL');assert.equal(result.motherName,'IBU CALON');assert.equal(result.emergencyContactName,'KONTAK CALON');});
+
+test('full names preserve apostrophes and periods through validation and spreadsheet rows',()=>{
+ for (const fullName of ["MA'RUF", "MOH. MA'RUF"]) {
+  const parsed=payrollSchema.parse({...fixture,fullName:fullName.toLowerCase()});
+  assert.equal(parsed.fullName,fullName);
+  const data=ctx.validatePayload(serverData(parsed));
+  assert.equal(data.fullName,fullName);
+  const headers=vm.runInContext('HEADERS',ctx);
+  const row=ctx.buildSubmissionRow('qa',data,fixture.accountValidation,'ktp','','kk',{},'NEW');
+  assert.equal(row[headers.indexOf('Nama Lengkap')],fullName);
+ }
+ for(const fullName of ['TEST123','<TEST>','TEST&NAME']) {
+  assert.equal(payrollSchema.safeParse({...fixture,fullName}).success,false);
+  assert.throws(()=>ctx.validatePayload(serverData({...fixture,fullName})));
+ }
+});
