@@ -47,3 +47,7 @@ export function listVillages(origin: string, districtCode: string): Promise<Regi
 export function listBirthRegencies(origin: string): Promise<RegionalResponse<RegencyOption[]>> {
   return postJson<RegionalResponse<RegencyOption[]>>({ action: 'listBirthRegencies', payload: { origin } });
 }
+
+export function checkCandidateEligibility(nik: string, submissionType: 'NEW' | 'REVISION', placement?: string, fingerPin?: string): Promise<ApiResponse> {
+  return postJson<ApiResponse>({ action: 'checkCandidateEligibility', payload: { origin: window.location.origin, nik, submissionType, placement, fingerPin } });
+}

@@ -3,10 +3,10 @@ import type { PayrollFormValues } from '../../types/payroll';
 import { digitsOnly } from '../../utils/sanitize';
 import { FieldShell, inputClass } from './FieldShell';
 
-export function NikField({ register, setValue, error }: { register: UseFormRegister<PayrollFormValues>; setValue: UseFormSetValue<PayrollFormValues>; error?: string }) {
+export function NikField({ register, setValue, error, readOnly = false }: { register: UseFormRegister<PayrollFormValues>; setValue: UseFormSetValue<PayrollFormValues>; error?: string; readOnly?: boolean }) {
   return (
     <FieldShell label="NIK" error={error}>
-      <input className={inputClass} inputMode="numeric" maxLength={16} {...register('nik')} onChange={(event) => setValue('nik', digitsOnly(event.target.value), { shouldValidate: true })} />
+      <input readOnly={readOnly} className={inputClass} inputMode="numeric" maxLength={16} {...register('nik')} onChange={(event) => setValue('nik', digitsOnly(event.target.value), { shouldValidate: true })} />
     </FieldShell>
   );
 }

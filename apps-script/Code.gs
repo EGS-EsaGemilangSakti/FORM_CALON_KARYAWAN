@@ -1,6 +1,6 @@
-const SHEET_NAME = 'Data Calon Karyawan';
+const SHEET_NAME = 'Calon Karyawan Baru';
 const AUDIT_SHEET_NAME = 'Audit Log';
-const REVISION_SHEET_NAME = 'Revisi Data Calon Karyawan';
+const REVISION_SHEET_NAME = 'Revisi Data Calon Karyawan Baru';
 const API_CO_ID_URL = 'https://use.api.co.id/validation/bank';
 const REGIONAL_API_BASE_URL = 'https://use.api.co.id/regional/indonesia';
 const HEADERS = [
@@ -112,7 +112,11 @@ function doPost(e) {
     const action = body.action;
     const payload = body.payload || {};
     verifyOrigin(payload.origin);
-    rateLimit(payload.origin, action);
+    rateLimit(payload.origin, action, payload.nik);
+
+    if (action === 'checkCandidateEligibility') {
+      return createResponse(checkCandidateEligibility(payload));
+    }
 
     if (action === 'validateBankAccount') {
       return createResponse(validateBankAccount(payload));
@@ -177,7 +181,7 @@ function handleSubmitPayroll(payload) {
   const submissionLock = LockService.getScriptLock();
   submissionLock.waitLock(30000);
   try {
-  assertFingerSubmissionLimit(data.fingerPin);
+  assertCandidateSubmission(data, submissionType);
   const submissionId = generateUUID();
   if (data.ownershipStatus === 'ORANG LAIN' && !(payload.files && payload.files.powerOfAttorney)) {
     throw new Error('Surat kuasa wajib diunggah');
@@ -408,9 +412,9 @@ function verifyOrigin(origin) {
   return true;
 }
 
-function rateLimit(origin, action) {
+function rateLimit(origin, action, nik) {
   const cache = CacheService.getScriptCache();
-  const key = 'rate:' + Utilities.base64EncodeWebSafe(String(origin || 'unknown') + ':' + String(action || 'unknown'));
+  const key = 'rate:' + Utilities.base64EncodeWebSafe(String(origin || 'unknown') + ':' + String(action || 'unknown') + (action === 'checkCandidateEligibility' ? ':' + String(nik || '') : ''));
   const current = Number(cache.get(key) || '0');
   if (current >= 20) {
     throw new Error('Terlalu banyak permintaan. Coba lagi beberapa menit.');
@@ -450,21 +454,81 @@ function uploadOptionalToDrive(filePayload, type, submissionId) {
   return filePayload ? uploadToDrive(filePayload, type, submissionId).url : '';
 }
 
-function assertFingerSubmissionLimit(fingerPin) {
+// Read only the two authoritative ledgers, including their legacy names.
+// Placement tabs are copies and must never be counted as additional submissions.
+function readCandidateHistory() {
   const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-  var submissionCount = 0;
-  [SHEET_NAME, REVISION_SHEET_NAME].forEach(function (sheetName) {
-    const sheet = spreadsheet.getSheetByName(sheetName);
+  const history = [];
+  const seen = {};
+  [[SHEET_NAME, 'NEW'], ['Data Calon Karyawan', 'NEW'],
+   [REVISION_SHEET_NAME, 'REVISION'], ['Revisi Data Calon Karyawan', 'REVISION']].forEach(function(entry) {
+    const sheet = spreadsheet.getSheetByName(entry[0]);
     if (!sheet || sheet.getLastRow() < 2) return;
-    const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    const fingerColumnIndex = headers.indexOf('ID PIN Finger');
-    if (fingerColumnIndex === -1) return;
-    const values = sheet.getRange(2, fingerColumnIndex + 1, sheet.getLastRow() - 1, 1).getDisplayValues();
-    values.forEach(function (row) {
-      if (String(row[0] || '').trim().toUpperCase() === String(fingerPin || '').trim().toUpperCase()) submissionCount += 1;
+    const rows = sheet.getRange(1, 1, sheet.getLastRow(), sheet.getLastColumn()).getDisplayValues();
+    const headers = rows.shift();
+    const nikIndex = headers.indexOf('NIK');
+    const placementIndex = headers.indexOf('Penempatan');
+    const fingerIndex = headers.indexOf('ID PIN Finger');
+    const idIndex = headers.indexOf('Submission ID');
+    if (nikIndex < 0 || placementIndex < 0 || fingerIndex < 0) throw new Error('Kolom riwayat calon karyawan tidak lengkap. Hubungi HRD.');
+    rows.forEach(function(row) {
+      const nik = String(row[nikIndex] || '').trim();
+      if (!nik) return;
+      const id = idIndex < 0 ? '' : String(row[idIndex] || '').trim();
+      if (id && seen[id]) return;
+      if (id) seen[id] = true;
+      history.push({nik: nik, placement: String(row[placementIndex] || '').trim(),
+        fingerPin: String(row[fingerIndex] || '').trim(), type: entry[1]});
     });
   });
-  if (submissionCount >= 2) throw new Error('ID PIN Finger sudah mencapai batas maksimal 2 kali pengisian');
+  return history;
+}
+
+function assertCandidateEligibility(nik, submissionType, history) {
+  if (!/^\d{16}$/.test(nik || '')) throw new Error('NIK wajib 16 digit angka');
+  if (submissionType !== 'NEW' && submissionType !== 'REVISION') throw new Error('Jenis pengisian tidak valid');
+  const own = history.filter(function(row) { return row.nik === nik; });
+  const initialCount = own.filter(function(row) { return row.type === 'NEW'; }).length;
+  const revisionCount = own.filter(function(row) { return row.type === 'REVISION'; }).length;
+  if (submissionType === 'NEW' && initialCount > 0) throw new Error('NIK sudah terdaftar. Pilih Revisi Data Calon Karyawan Baru.');
+  if (submissionType === 'REVISION' && initialCount === 0) throw new Error('NIK belum terdaftar pada Calon Karyawan Baru. Lakukan pendaftaran awal terlebih dahulu.');
+  if (submissionType === 'REVISION' && (revisionCount >= 2 || own.length >= 3)) throw new Error('Batas pengisian tercapai: 1 pendaftaran awal dan maksimal 2 revisi.');
+  if (submissionType === 'NEW' && own.length >= 3) throw new Error('Riwayat NIK sudah mencapai batas pengisian. Hubungi HRD.');
+}
+
+function checkCandidateEligibility(payload) {
+  const history = readCandidateHistory();
+  assertCandidateEligibility(payload.nik, payload.submissionType, history);
+  if (payload.placement !== undefined || payload.fingerPin !== undefined) {
+    assertCandidateFinger(payload, history);
+  }
+  // Return eligibility only, never employee details.
+  return {success: true, message: 'NIK dapat melanjutkan pengisian.'};
+}
+
+function assertCandidateSubmission(data, submissionType) {
+  const history = readCandidateHistory();
+  assertCandidateEligibility(data.nik, submissionType, history);
+  assertCandidateFinger(data, history);
+}
+
+function assertCandidateFinger(data, history) {
+  if (PLACEMENTS.indexOf(data.placement) === -1 || !/^\d{1,30}$/.test(data.fingerPin || '')) throw new Error('Penempatan dan ID PIN Finger tidak valid');
+  const conflict = history.some(function(row) {
+    return row.placement === data.placement && row.fingerPin === data.fingerPin && row.nik !== data.nik;
+  });
+  if (conflict) throw new Error('ID PIN Finger sudah digunakan calon karyawan lain pada penempatan ' + data.placement + '.');
+}
+
+// Rename existing ledgers without deleting or rewriting historical rows.
+function migrateCandidateLedgerNames() {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+  try {
+    getSheet(SHEET_NAME);
+    getSheet(REVISION_SHEET_NAME);
+    console.log('Nama sheet calon karyawan berhasil disesuaikan; data lama dipertahankan.');
+  } finally { lock.releaseLock(); }
 }
 
 function saveToSpreadsheet(submissionId, data, validation, ktpUrl, suratKuasaUrl, familyCardUrl, employeeDocuments, submissionType) {
@@ -612,7 +676,12 @@ function logSubmission(status, submissionId, message) {
 function getSheet(name) {
   if (!SPREADSHEET_ID) throw new Error('SPREADSHEET_ID belum diatur');
   const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-  return spreadsheet.getSheetByName(name) || spreadsheet.insertSheet(name);
+  const existing = spreadsheet.getSheetByName(name);
+  if (existing) return existing;
+  const legacyName = name === SHEET_NAME ? 'Data Calon Karyawan' : (name === REVISION_SHEET_NAME ? 'Revisi Data Calon Karyawan' : '');
+  const legacy = legacyName ? spreadsheet.getSheetByName(legacyName) : null;
+  if (legacy) return legacy.setName(name);
+  return spreadsheet.insertSheet(name);
 }
 
 function rejectUnknownFields(object, allowedFields) {

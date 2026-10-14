@@ -1,3 +1,5 @@
+import { CandidateEntry, type CandidateEntryValue } from './CandidateEntry';
+import { checkCandidateEligibility } from '../../services/api';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft, ArrowRight, BarChart3, BriefcaseBusiness, Check, CheckCircle2, CloudUpload, Info, Loader2, MapPin, Send, ShieldCheck, WalletCards } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -300,7 +302,9 @@ export function PayrollForm() {
   const persistedDraft = useMemo(loadPersistedDraft, []);
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(persistedDraft.currentStep ?? 1);
   const [pendingValues, setPendingValues] = useState<PayrollFormValues | null>(null);
-  const [selectedSubmissionType, setSelectedSubmissionType] = useState<'NEW' | 'REVISION' | null>(null);
+  const [entry, setEntry] = useState<CandidateEntryValue | null>(null);
+  const [checkingFinger, setCheckingFinger] = useState(false);
+  const selectedSubmissionType = entry?.submissionType ?? null;
   const [thankYouMessage, setThankYouMessage] = useState<string | null>(null);
   const submitLock = useRef(false);
   const skipDraftPersistRef = useRef(false);
@@ -377,6 +381,7 @@ export function PayrollForm() {
   const selectedBank = useMemo(() => BANKS.find((bank) => bank.bank_code === bankCode), [bankCode]);
 
   const goToNextStep = async () => {
+    if (checkingFinger || !entry) return;
     const fields = stepFields[currentStep as keyof typeof stepFields];
     const isStepValid = await trigger([...fields]);
     if (!isStepValid) {
@@ -386,6 +391,18 @@ export function PayrollForm() {
     if (currentStep === 2 && !isAccountValidationAccepted(watch('accountValidation'))) {
       toast.error(`Rekening wajib divalidasi dengan score minimal ${MIN_ACCOUNT_VALIDATION_SCORE} sebelum lanjut`);
       return;
+    }
+    if (currentStep === 2) {
+      setCheckingFinger(true);
+      try {
+        const values = watch();
+        const result = await checkCandidateEligibility(entry.nik, entry.submissionType, values.placement, values.fingerPin);
+        if (!result.success) throw new Error(result.message);
+        if (watch('placement') !== values.placement || watch('fingerPin') !== values.fingerPin) throw new Error('Penempatan atau ID Finger berubah. Tekan Lanjut untuk memeriksa kembali.');
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : 'Pemeriksaan ID Finger gagal');
+        return;
+      } finally { setCheckingFinger(false); }
     }
     setCurrentStep((step) => Math.min(step + 1, 3) as 1 | 2 | 3);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -397,12 +414,13 @@ export function PayrollForm() {
   };
 
   const onSubmit = async (values: PayrollFormValues) => {
+    if (!entry || values.nik !== entry.nik) { toast.error('Periksa NIK kembali sebelum mengirim.'); return; }
     setPendingValues(values);
-    setSelectedSubmissionType(null);
   };
 
   const submitConfirmed = async (values: PayrollFormValues, submissionType: 'NEW' | 'REVISION') => {
     if (submitLock.current) return;
+    if (!entry || values.nik !== entry.nik || submissionType !== entry.submissionType) { toast.error('Periksa NIK kembali sebelum mengirim.'); return; }
     if (currentStep !== 3) {
       toast.error('Selesaikan step saat ini sebelum mengirim data');
       return;
@@ -477,7 +495,7 @@ export function PayrollForm() {
       reset(getEmptyFormValues());
       setCurrentStep(1);
       setPendingValues(null);
-      setSelectedSubmissionType(null);
+      setEntry(null);
       setThankYouMessage(response.submissionId || 'Berhasil');
       window.setTimeout(() => {
         skipDraftPersistRef.current = false;
@@ -489,26 +507,29 @@ export function PayrollForm() {
     }
   };
 
+  if (!entry && !thankYouMessage) return <CandidateEntry initialNik={watch('nik')} onContinue={value => {
+    if (value.nik !== watch('nik')) reset(getEmptyFormValues());
+    setValue('nik', value.nik);
+    setCurrentStep(1);
+    setEntry(value);
+  }} />;
+
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-10 px-5 pb-28 pt-6 sm:px-8" noValidate>
       {isSubmitLoading ? <SubmitLoadingOverlay /> : null}
+      {entry && <div className="flex flex-wrap items-center justify-between gap-3">
+        <p>{entry.submissionType === 'REVISION' ? 'Revisi Data Calon Karyawan Baru' : 'Calon Karyawan Baru'}</p>
+        <button type="button" disabled={isSubmitLoading || checkingFinger} onClick={() => { setEntry(null); setPendingValues(null); }}>Ganti Jenis Pengisian / NIK</button>
+      </div>}
+      {checkingFinger && <p role="status">Memeriksa ID Finger pada penempatan yang dipilih...</p>}
       {pendingValues ? <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 px-5 backdrop-blur-sm">
         <div role="dialog" aria-modal="true" aria-labelledby="submission-dialog-title" className="w-full max-w-md rounded-2xl border border-[#f2ca50]/25 bg-[#201f1f] p-6 shadow-2xl">
-          <h2 id="submission-dialog-title" className="text-2xl font-semibold text-white">{selectedSubmissionType ? 'Konfirmasi Submit' : 'Pilih Jenis Pengisian'}</h2>
-          {selectedSubmissionType ? <>
-            <p className="mt-3 leading-7 text-[#d0c5af]">Pastikan seluruh data {selectedSubmissionType === 'REVISION' ? 'yang direvisi' : 'karyawan baru'} sudah benar sebelum dikirim.</p>
-            <div className="mt-6 flex gap-3">
-              <button type="button" className="flex-1 rounded-xl border border-[#f2ca50]/30 px-4 py-3 font-semibold text-[#f2ca50]" onClick={() => setSelectedSubmissionType(null)}>Kembali</button>
-              <button type="button" className="flex-1 rounded-xl bg-[#f2ca50] px-4 py-3 font-bold text-[#3c2f00]" onClick={() => void submitConfirmed(pendingValues, selectedSubmissionType)}>Submit</button>
-            </div>
-          </> : <>
-            <p className="mt-3 leading-7 text-[#d0c5af]">Pilih tujuan pengiriman data ini.</p>
-            <div className="mt-6 grid gap-3">
-              <button type="button" className="rounded-xl bg-[#f2ca50] px-4 py-3 font-bold text-[#3c2f00]" onClick={() => setSelectedSubmissionType('NEW')}>Calon Karyawan Baru</button>
-              <button type="button" className="rounded-xl border border-[#f2ca50]/40 px-4 py-3 font-semibold text-[#f2ca50]" onClick={() => setSelectedSubmissionType('REVISION')}>Revisi Data Calon Karyawan</button>
-              <button type="button" className="px-4 py-2 text-sm text-[#d0c5af]" onClick={() => setPendingValues(null)}>Batal</button>
-            </div>
-          </>}
+          <h2 id="submission-dialog-title" className="text-2xl font-semibold text-white">Konfirmasi Submit</h2>
+          <p className="mt-3 leading-7 text-[#d0c5af]">{selectedSubmissionType === 'REVISION' ? 'Revisi Data Calon Karyawan Baru' : 'Calon Karyawan Baru'} — NIK {entry?.nik}. Pastikan seluruh data sudah benar.</p>
+          <div className="mt-6 flex gap-3">
+            <button type="button" className="flex-1 rounded-xl border border-[#f2ca50]/30 px-4 py-3 text-[#f2ca50]" onClick={() => setPendingValues(null)}>Kembali</button>
+            <button type="button" className="flex-1 rounded-xl bg-[#f2ca50] px-4 py-3 font-bold text-[#3c2f00]" onClick={() => selectedSubmissionType && void submitConfirmed(pendingValues, selectedSubmissionType)}>Submit</button>
+          </div>
         </div>
       </div> : null}
       {thankYouMessage ? <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/80 px-5 backdrop-blur-sm">
@@ -539,7 +560,7 @@ export function PayrollForm() {
           <StepCard>
             <EmailField register={register} error={errors.email?.message} />
             <FullNameField register={register} setValue={setValue} error={errors.fullName?.message} />
-            <NikField register={register} setValue={setValue} error={errors.nik?.message} />
+            <NikField readOnly register={register} setValue={setValue} error={errors.nik?.message} />
             <PhoneField register={register} setValue={setValue} error={errors.phone?.message} />
             <PersonalEmergencyFields register={register} setValue={setValue} errors={{
               motherName: errors.motherName?.message,
@@ -643,14 +664,14 @@ export function PayrollForm() {
       <div className="fixed bottom-0 left-0 right-0 z-20 border-t border-[#f2ca50]/15 bg-[#1c1b1b] px-5 py-4">
         <div className="mx-auto flex max-w-3xl gap-3">
           {currentStep > 1 ? (
-            <button type="button" onClick={goToPreviousStep} className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#f2ca50]/30 px-4 text-sm font-semibold text-[#f2ca50]">
+            <button type="button" disabled={checkingFinger} onClick={goToPreviousStep} className="inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-[#f2ca50]/30 px-4 text-sm font-semibold text-[#f2ca50]">
               <ArrowLeft className="h-4 w-4" />
               Kembali
             </button>
           ) : null}
 
           {currentStep < 3 ? (
-            <button type="button" onClick={goToNextStep} className="inline-flex h-12 flex-1 items-center justify-center gap-3 rounded-xl bg-[#f2ca50] px-8 text-sm font-semibold tracking-[0.05em] text-[#3c2f00] transition hover:bg-[#ffd95c]">
+            <button type="button" disabled={checkingFinger} onClick={goToNextStep} className="inline-flex h-12 flex-1 items-center justify-center gap-3 rounded-xl bg-[#f2ca50] px-8 text-sm font-semibold tracking-[0.05em] text-[#3c2f00] transition hover:bg-[#ffd95c]">
               Lanjut
               <ArrowRight className="h-4 w-4" />
             </button>
