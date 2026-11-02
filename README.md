@@ -4,7 +4,7 @@ Form pendaftaran calon karyawan PT ESA GEMILANG SAKTI, dengan tampilan dasar for
 
 ## Aturan formulir
 
-- Penempatan: JAT, JRT, JST.
+- Penempatan: JAT, JRT, JST, TGR, JKT.
 - Posisi: BATANGAN/REGULER (satu pilihan).
 - Status karyawan: Kontrak.
 - Identitas karyawan: ID PIN Finger berupa 1–30 digit; angka nol di awal dipertahankan. Tidak menggunakan ID OPS, OS, atau ID karyawan lain.

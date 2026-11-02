@@ -86,7 +86,7 @@ const ALLOWED_FIELDS = [
   'formStartedAt',
   'bank'
 ];
-const PLACEMENTS = ['JAT', 'JRT', 'JST'];
+const PLACEMENTS = ['JAT', 'JRT', 'JST', 'TGR', 'JKT'];
 const MIN_ACCOUNT_VALIDATION_SCORE = 7;
 const EMPLOYMENT_STATUSES = ['Kontrak'];
 const POSITIONS = ['BATANGAN/REGULER'];

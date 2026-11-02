@@ -1,4 +1,4 @@
-export const PLACEMENTS = ['JAT', 'JRT', 'JST'] as const;
+export const PLACEMENTS = ['JAT', 'JRT', 'JST', 'TGR', 'JKT'] as const;
 export const EMPLOYMENT_STATUSES = ['Kontrak'] as const;
 export const POSITIONS = ['BATANGAN/REGULER'] as const;
 export const OWNERSHIP_STATUSES = ['PRIBADI', 'ORANG LAIN'] as const;
