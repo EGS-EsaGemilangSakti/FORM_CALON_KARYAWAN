@@ -1,7 +1,9 @@
+import { getAppsScriptAccessToken, appsScriptRequest, loginGoogle } from './google-auth.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
+import vm from 'node:vm';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -35,7 +37,9 @@ export function buildGoogleFiles(remote, sources, bundled) {
   const updates = bundled ? { Code: ['Config','Setup','Code'].map(n=>sources[n]).join('\n\n'), ...Object.fromEntries(Object.entries(sources).filter(([n])=>!['Config','Setup','Code'].includes(n))) } : sources;
   for (const [name,source] of Object.entries(updates)) {
     if (typeof source !== 'string') throw new Error('Sumber Apps Script tidak lengkap: '+name);
-    const existing=files.find(f=>f.name===name && f.type==='SERVER_JS');
+    // Driver production uses the historical filename Confing. Preserve that name.
+    const targetName=name==='Config' && !files.some(f=>f.name==='Config') && files.some(f=>f.name==='Confing' && f.type==='SERVER_JS')?'Confing':name;
+    const existing=files.find(f=>f.name===targetName && f.type==='SERVER_JS');
     if(existing) existing.source=source; else files.push({name,type:'SERVER_JS',source});
   }
   if(!files.some(f=>f.name==='appsscript' && f.type==='JSON')) throw new Error('Manifest Apps Script produksi tidak ditemukan.');
@@ -66,9 +70,17 @@ function backendSources() {
 function sourceHash(sources) {return crypto.createHash('sha256').update(JSON.stringify(sources)).digest('hex');}
 async function main() {
   const args=process.argv.slice(2);
-  if(args.includes('--help')) {console.log('node rilis.mjs --message "Deskripsi perubahan"\nnode rilis.mjs --check\nnode rilis.mjs --with-backend --message "Perubahan FE dan GAS"\nNode 20+, Git, npm diperlukan. Backend memakai APPS_SCRIPT_ACCESS_TOKEN. Lihat RILIS.md.');return;}
-  const accepted=new Set(['--check','--with-backend','--message']);
+  if(args.includes('--help')) {console.log('node rilis.mjs --message "Deskripsi perubahan"\nnode rilis.mjs --check\nnode rilis.mjs --with-backend --message "Perubahan FE dan GAS"\nNode 20+, Git, npm diperlukan. Login sekali: node rilis.mjs --login-google; periksa: --check-google. Backend berubah akan dirilis otomatis. Lihat RILIS.md.');return;}
+  const accepted=new Set(['--check','--with-backend','--frontend-only','--login-google','--check-google','--message']);
   for(let i=0;i<args.length;i++) {if(!accepted.has(args[i]))throw new Error('Argumen tidak dikenal: '+args[i]);if(args[i]==='--message'){if(!args[i+1]||args[i+1].startsWith('--'))throw new Error('Pesan commit wajib diisi.');i++;}}
+  if(args.includes('--with-backend') && args.includes('--frontend-only'))throw new Error('Pilih --with-backend atau --frontend-only, bukan keduanya.');
+  if(args.includes('--login-google')) {loginGoogle(CONFIG); await getAppsScriptAccessToken(); console.log('LOGIN GOOGLE VERIFIED: akun HRD, refresh token tersedia.'); return;}
+  if(args.includes('--check-google')) {
+    const token=await getAppsScriptAccessToken();
+    const content=await appsScriptRequest(CONFIG,token,'/content');
+    const deployment=await appsScriptRequest(CONFIG,token,'/deployments/'+CONFIG.deploymentId);
+    console.log('GOOGLE READY: '+CONFIG.name+' | '+content.files.length+' file | deployment versi '+deployment.deploymentConfig.versionNumber);return;
+  }
   if(Number(process.versions.node.split('.')[0])<20)throw new Error('Gunakan Node.js 20 atau lebih baru.');
   const originalBranch=git(['branch','--show-current'],{capture:true});
   if(originalBranch!=='main')throw new Error('Jalankan dari branch main. Skrip tidak berpindah branch otomatis.');
@@ -77,15 +89,16 @@ async function main() {
   const gitDir=path.resolve(ROOT,git(['rev-parse','--git-dir'],{capture:true}));
   const lock=path.join(gitDir,'form-release.lock');
   try {fs.mkdirSync(lock);} catch {throw new Error('Ada rilis berjalan. Jika proses sebelumnya terputus, periksa lalu hapus '+lock);}
-  let ghToken;
+  let ghToken, googleToken;
   try {
     const statePath=path.join(gitDir,'form-release-state.json');
     const state=fs.existsSync(statePath)?JSON.parse(fs.readFileSync(statePath,'utf8')):{};
     const sources=backendSources(),hash=sources?sourceHash(sources):null;
     const backendChanged=hash!==null && hash!==(state.backendHash||CONFIG.backendBaseline);
-    if(backendChanged && !args.includes('--with-backend') && !args.includes('--check'))throw new Error('Apps Script lokal berubah. Gunakan --with-backend agar backend ikut dipublikasikan.');
-    if(args.includes('--with-backend') && !sources)throw new Error('Sumber apps-script/*.gs belum tersedia pada checkout ini.');
-    if(args.includes('--with-backend') && !process.env.APPS_SCRIPT_ACCESS_TOKEN)throw new Error('APPS_SCRIPT_ACCESS_TOKEN belum tersedia. Tidak ada commit/push/deploy dilakukan. Lihat RILIS.md.');
+    const wantsBackend=args.includes('--with-backend') || (backendChanged && !args.includes('--frontend-only'));
+    if(backendChanged && args.includes('--frontend-only'))throw new Error('Backend berubah; hapus --frontend-only agar frontend dan backend tetap konsisten.');
+    if(wantsBackend && !sources)throw new Error('Sumber apps-script/*.gs belum tersedia pada checkout ini.');
+    if(wantsBackend && !args.includes('--check')) googleToken=await getAppsScriptAccessToken();
     if(git(['diff','--name-only','--diff-filter=U'],{capture:true}))throw new Error('Selesaikan merge conflict terlebih dahulu.');
     npm(['ci','--no-audit','--no-fund']);
     const tests=fs.existsSync(path.join(ROOT,'tests'))?fs.readdirSync(path.join(ROOT,'tests')).filter(f=>f.endsWith('.test.mjs')).map(f=>'tests/'+f):[];
@@ -96,7 +109,7 @@ async function main() {
     if(!ghToken){const credentials=git(['credential','fill'],{capture:true,input:'protocol=https\nhost=github.com\nusername=EGS-EsaGemilangSakti\n\n',env:{...process.env,GIT_TERMINAL_PROMPT:'0',GCM_INTERACTIVE:'never'}});ghToken=credentials.split(/\r?\n/).find(s=>s.startsWith('password='))?.slice(9);}
     if(!ghToken)throw new Error('Login GitHub lewat Git Credential Manager atau atur GH_TOKEN.');
     async function github(route,method='GET',body) {
-      const r=await fetch('https://api.github.com/repos/'+repo+'/'+route,{method,headers:{Authorization:'Bearer '+ghToken,'User-Agent':'egs-form-release','Accept':'application/vnd.github+json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(30000)});
+      const r=await fetch('https://api.github.com/repos/'+repo+'/'+route,{method,headers:{Authorization:'Bearer '+ghToken,'User-Agent':'egs-form-release','Accept':'application/vnd.github+json','Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(30000)});
       if(!r.ok)throw new Error('GitHub API '+route+' gagal HTTP '+r.status+'.');
       return r.status===204?null:r.json();
     }
@@ -120,17 +133,20 @@ async function main() {
     }
     const sha=git(['rev-parse','HEAD'],{capture:true});
     const started=Date.now()-10000;
-    if(args.includes('--with-backend')) {
-      const token=process.env.APPS_SCRIPT_ACCESS_TOKEN;
-      async function gas(route,method='GET',body){const r=await fetch('https://script.googleapis.com/v1/projects/'+CONFIG.scriptId+route,{method,headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(30000)});if(!r.ok)throw new Error('Apps Script API '+route+' gagal HTTP '+r.status+'. Backend/Pages belum dinyatakan selesai.');return r.json();}
+    if(wantsBackend) {
+      const token=googleToken;
+      const gas=(route,method='GET',body)=>appsScriptRequest(CONFIG,token,route,method,body);
       const live=await gas('/content');
       const deployment=await gas('/deployments/'+CONFIG.deploymentId);
       const files=buildGoogleFiles(live.files,sources,CONFIG.bundledBackend);
+      new vm.Script(files.filter(f=>f.type==='SERVER_JS').map(f=>f.source).join('\n'),{filename:'release-backend.gs'});
       const backupDir=path.join(gitDir,'release-backups');fs.mkdirSync(backupDir,{recursive:true});
       fs.writeFileSync(path.join(backupDir,Date.now()+'-gas.json'),JSON.stringify({content:live,deployment},null,2));
       await gas('/content','PUT',{files});
       const version=await gas('/versions','POST',{description:'Release '+sha});
       await gas('/deployments/'+CONFIG.deploymentId,'PUT',{deploymentConfig:{...deployment.deploymentConfig,versionNumber:version.versionNumber,description:'Release '+sha}});
+      const active=await gas('/deployments/'+CONFIG.deploymentId);
+      if(active.deploymentConfig.versionNumber!==version.versionNumber)throw new Error('Versi backend aktif tidak cocok dengan versi rilis.');
       state.backendHash=hash;state.backendVersion=version.versionNumber;fs.writeFileSync(statePath,JSON.stringify(state,null,2));
       console.log('Apps Script aktif pada versi '+version.versionNumber+' (endpoint yang sama).');
     }
@@ -155,6 +171,6 @@ async function main() {
       console.log('Menunggu commit terbaru muncul pada domain produksi...');await sleep(10000);
     }
     throw new Error('Domain belum menampilkan commit '+sha+'. Periksa cache/DNS/Pages.');
-  } finally {ghToken=undefined;fs.rmdirSync(lock);}
+  } finally {googleToken=undefined;ghToken=undefined;fs.rmdirSync(lock);}
 }
 if(process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url))main().catch(error=>{console.error('RILIS GAGAL: '+error.message);process.exitCode=1;});

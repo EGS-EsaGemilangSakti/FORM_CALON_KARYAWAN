@@ -33,3 +33,10 @@ test('production verification requires valid JSON with an exact commit',async()=
   globalThis.fetch=async()=>new Response('missing',{status:404});assert.equal(await readPublishedRevision('https://example.com'),null);
  } finally {globalThis.fetch=original;}
 });
+
+test('GAS release preserves the historical Driver Confing filename without duplicate globals',()=>{
+ const remote=[{name:'appsscript',type:'JSON',source:'{}'},{name:'Confing',type:'SERVER_JS',source:'old'}];
+ const files=buildGoogleFiles(remote,{Config:'new config'},false);
+ assert.equal(files.find(f=>f.name==='Confing').source,'new config');
+ assert.equal(files.some(f=>f.name==='Config'),false);
+});
