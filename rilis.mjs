@@ -45,6 +45,14 @@ export function buildGoogleFiles(remote, sources, bundled) {
   if(!files.some(f=>f.name==='appsscript' && f.type==='JSON')) throw new Error('Manifest Apps Script produksi tidak ditemukan.');
   return files;
 }
+export async function waitForBackendVersion(readDeployment,expected,pause=sleep) {
+  for(let attempt=0;attempt<10;attempt++) {
+    const active=await readDeployment();
+    if(active.deploymentConfig?.versionNumber===expected)return active;
+    if(attempt<9)await pause(2000);
+  }
+  throw new Error('Versi backend aktif belum cocok dengan versi rilis setelah pemeriksaan ulang.');
+}
 export async function readPublishedRevision(url) {
   const target=new URL('release.json',url); target.searchParams.set('check',Date.now().toString());
   const response=await fetch(target,{cache:'no-store',signal:AbortSignal.timeout(20000)});
@@ -145,8 +153,7 @@ async function main() {
       await gas('/content','PUT',{files});
       const version=await gas('/versions','POST',{description:'Release '+sha});
       await gas('/deployments/'+CONFIG.deploymentId,'PUT',{deploymentConfig:{...deployment.deploymentConfig,versionNumber:version.versionNumber,description:'Release '+sha}});
-      const active=await gas('/deployments/'+CONFIG.deploymentId);
-      if(active.deploymentConfig.versionNumber!==version.versionNumber)throw new Error('Versi backend aktif tidak cocok dengan versi rilis.');
+      await waitForBackendVersion(()=>gas('/deployments/'+CONFIG.deploymentId),version.versionNumber);
       state.backendHash=hash;state.backendVersion=version.versionNumber;fs.writeFileSync(statePath,JSON.stringify(state,null,2));
       console.log('Apps Script aktif pada versi '+version.versionNumber+' (endpoint yang sama).');
     }

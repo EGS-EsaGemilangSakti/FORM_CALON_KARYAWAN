@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import {repositoryFromUrl,selectRun,isSafeNewFile,buildGoogleFiles,readPublishedRevision} from '../rilis.mjs';
+import {repositoryFromUrl,selectRun,isSafeNewFile,buildGoogleFiles,readPublishedRevision,waitForBackendVersion} from '../rilis.mjs';
 test('release accepts GitHub remotes and rejects lookalike hosts',()=>{
  assert.equal(repositoryFromUrl('https://github.com/owner/repo.git'),'owner/repo');
  assert.equal(repositoryFromUrl('git@github.com:owner/repo.git'),'owner/repo');
@@ -39,4 +39,10 @@ test('GAS release preserves the historical Driver Confing filename without dupli
  const files=buildGoogleFiles(remote,{Config:'new config'},false);
  assert.equal(files.find(f=>f.name==='Confing').source,'new config');
  assert.equal(files.some(f=>f.name==='Config'),false);
+});
+
+test('backend confirmation tolerates stale Google reads but rejects an unconfirmed deployment',async()=>{
+ let reads=0;const active=await waitForBackendVersion(async()=>({deploymentConfig:{versionNumber:++reads<3?1:2}}),2,async()=>{});
+ assert.equal(reads,3);assert.equal(active.deploymentConfig.versionNumber,2);
+ await assert.rejects(waitForBackendVersion(async()=>({deploymentConfig:{versionNumber:1}}),2,async()=>{}),/belum cocok/);
 });
