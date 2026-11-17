@@ -50,6 +50,9 @@ jobs:
         env:
           VITE_API_URL: ${{ vars.VITE_API_URL }}
 
+      - name: Mark published revision
+        run: node -e "require('fs').writeFileSync('dist/release.json', JSON.stringify({commit:process.env.GITHUB_SHA}))"
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
